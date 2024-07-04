@@ -9,7 +9,7 @@ from src.utils import *
 from src.memory import *
 from src.agents import *
 
-os.environ['WANDB_API_KEY'] = ''
+os.environ['WANDB_API_KEY'] = '01e9ca698955c55d33dab7e19733a59fdbb7b6e1'
 class Trainer:
 
     def __init__(self, config_file, enable_logging=True):
@@ -31,7 +31,7 @@ class Trainer:
         if self.enable_logging:
             wandb.init(project="ddpg", config=self.config)
         try:
-            os.mkdir('./models')
+            os.mkdir('./pretrained_models')
         except Exception as e:
             pass
 
@@ -79,9 +79,13 @@ class Trainer:
                 done = False
                 episode_reward = 0
                 episode_timesteps = 0
+                if episode_num % 100 == 0 and episode_num > 0:
+                    evaluations.append(evaluate_policy(self.agent, self.config['env_name'], self.config['seed'],enable_logging=self.enable_logging,wandb=wandb))
+                    self.agent.save_checkpoint(f"./pretrained_models/{self.save_file_name}")
                 episode_num += 1
-            if episode_num % 100 == 0:
-                evaluations.append(evaluate_policy(self.agent, self.config['env_name'], self.config['seed'],enable_logging=self.enable_logging,wandb=wandb))
-                self.agent.save_checkpoint(f"./models/{self.save_file_name}")
         wandb.finish()
         return episode_rewards, evaluations
+    
+    def evaluate(self):
+        self.agent.load_checkpoint(f"./pretrained_models/DDPG_{self.config['env_name']}_{self.config['seed']}")
+        evaluate_policy(self.agent, self.config['env_name'], self.config['seed'],render=True)
