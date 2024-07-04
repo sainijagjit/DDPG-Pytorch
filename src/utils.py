@@ -1,18 +1,36 @@
 import gym
+import torch
 import numpy as np
 
+def apply_seed(env,seed):
+    if hasattr(env, 'seed'):
+        env.seed(seed)
+    else:
+        env.action_space.seed(seed)
+        env.observation_space.seed(seed)
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    return env
 
-def evaluate_policy(policy, env_name, seed, eval_episodes=10, render=False):
+
+def evaluate_policy(policy, env_name, seed, wandb,enable_logging=True, eval_episodes=10, render=False):
     eval_env = gym.make(env_name)
-    eval_env.seed(seed + 100)
-    avg_reward = 0.
+    eval_env = apply_seed(eval_env,seed)
+    avg_reward = 0
     for _ in range(eval_episodes):
-        state, done = eval_env.reset(), False
-        while not done:
+        state, info = eval_env.reset()
+        done = False
+        trunc = False
+        while not done and not trunc:
             action = policy.select_action(np.array(state))
             if render:
                 eval_env.render()
-            state, reward, done, _ = eval_env.step(action)
+            state, reward, done, trunc, info = eval_env.step(action)
             avg_reward += reward
     avg_reward /= eval_episodes
+    if enable_logging:
+        wandb.log({'Test Episode Reward': avg_reward})
+    else:
+        print('avg_reward',avg_reward)
     return avg_reward
+

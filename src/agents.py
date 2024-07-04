@@ -59,9 +59,9 @@ class DDPGAgent(object):
         
         
     def train(self, replay_buffer, batch_size=100):
-        state, action, next_state, reward, done = replay_buffer.sample(batch_size)
+        state, action, reward, next_state, done = replay_buffer.sample(batch_size)
         target_q = self.critic_target(next_state, self.actor_target(next_state))
-        target_q = reward + (done * self.discount * target_q).detach()
+        target_q = reward + ((1-done) * self.discount * target_q).detach()
         current_q = self.critic(state, action)
         critic_loss = F.mse_loss(current_q, target_q)
         self.critic_optimizer.zero_grad()

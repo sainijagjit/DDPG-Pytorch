@@ -1,4 +1,5 @@
 import os
+import wandb
 import gym
 import json
 import torch
@@ -8,14 +9,14 @@ from src.utils import *
 from src.memory import *
 from src.agents import *
 
-
+os.environ['WANDB_API_KEY'] = ''
 class Trainer:
 
-    def __init__(self, config_file, enable_logging=False):
+    def __init__(self, config_file, enable_logging=True):
         self.enable_logging = enable_logging
         self.config = Trainer.parse_config(config_file)
         self.env = gym.make(self.config['env_name'])
-        self.apply_seed()
+        self.env = apply_seed(self.env,self.config['seed'])
         self.state_dimension = self.env.observation_space.shape[0]
         self.action_dimension = self.env.action_space.shape[0]
         self.max_action = float(self.env.action_space.high[0])
@@ -27,9 +28,8 @@ class Trainer:
         )
         self.save_file_name = f"DDPG_{self.config['env_name']}_{self.config['seed']}"
         self.memory = ReplayBuffer()
-        # if self.enable_logging:
-        #     from torch.utils.tensorboard import SummaryWriter
-        #     self.writer = SummaryWriter('./logs/' + self.config['env_name'] + '/')
+        if self.enable_logging:
+            wandb.init(project="ddpg", config=self.config)
         try:
             os.mkdir('./models')
         except Exception as e:
@@ -41,18 +41,8 @@ class Trainer:
             configs = json.load(f)
         return configs
 
-    def apply_seed(self):
-        if hasattr(self.env, 'seed'):
-            self.env.seed(self.config['seed'])
-        else:
-            self.env.action_space.seed(self.config['seed'])
-            self.env.observation_space.seed(self.config['seed'])
-
-        torch.manual_seed(self.config['seed'])
-        np.random.seed(self.config['seed'])
-
     def train(self):
-        state = self.env.reset()
+        state, info = self.env.reset()
         done = False
         episode_reward = 0
         episode_timesteps = 0
@@ -75,22 +65,23 @@ class Trainer:
                 )
             next_state, reward, done, trunc, info = self.env.step(action)
             self.memory.push(
-                state, action, next_state, reward,
+                state, action,reward, next_state,
                 float(done) if episode_timesteps < self.env._max_episode_steps else 0)
             state = next_state
             episode_reward += reward
             if ts >= self.config['start_time_step']:
                 self.agent.train(self.memory, self.config['batch_size'])
             if done:
-                # if self.enable_logging:
-                #     self.writer.add_scalar('Episode Reward', episode_reward, ts)
+                if self.enable_logging:
+                    wandb.log({'Episode Reward': episode_reward, 'Timesteps': ts})
                 episode_rewards.append(episode_reward)
-                state = self.env.reset()
+                state, info = self.env.reset()
                 done = False
                 episode_reward = 0
                 episode_timesteps = 0
                 episode_num += 1
-        if ts % 1000 == 0:
-            evaluations.append(evaluate_policy(self.agent, self.config['env_name'], self.config['seed']))
-            self.agent.save_checkpoint(f"./models/{self.save_file_name}")
+            if episode_num % 100 == 0:
+                evaluations.append(evaluate_policy(self.agent, self.config['env_name'], self.config['seed'],enable_logging=self.enable_logging,wandb=wandb))
+                self.agent.save_checkpoint(f"./models/{self.save_file_name}")
+        wandb.finish()
         return episode_rewards, evaluations

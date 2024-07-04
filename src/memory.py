@@ -12,6 +12,7 @@ class ReplayBuffer:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
     def push(self, state, action, reward, next_state, done):
+        
         experience = (state, action, reward, next_state, done)
         self.buffer.append(experience)
         
@@ -28,14 +29,14 @@ class ReplayBuffer:
             state, action, reward, next_state, done = experience
             state_batch.append(state)
             action_batch.append(action)
-            reward_batch.append([reward])
+            reward_batch.append(reward)
             next_state_batch.append(next_state)
             done_batch.append(done)
-            state_batch = torch.FloatTensor(state_batch).to(self.device)
-            action_batch = torch.FloatTensor(action_batch).to(self.device)
-            reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze(1)
-            next_state_batch = torch.FloatTensor(next_state_batch).to(self.device)
-            done_batch = torch.FloatTensor(done_batch).to(self.device).unsqueeze(1)
+        state_batch = torch.FloatTensor(np.array(state_batch)).to(self.device)
+        action_batch = torch.FloatTensor(np.array(action_batch)).to(self.device)
+        reward_batch = torch.FloatTensor(reward_batch).to(self.device).unsqueeze(1)
+        next_state_batch = torch.FloatTensor(np.array(next_state_batch)).to(self.device)
+        done_batch = torch.FloatTensor(done_batch).to(self.device).unsqueeze(1)
             
             
 
