@@ -9,7 +9,7 @@ from src.utils import *
 from src.memory import *
 from src.agents import *
 
-os.environ['WANDB_API_KEY'] = '01e9ca698955c55d33dab7e19733a59fdbb7b6e1'
+os.environ['WANDB_API_KEY'] = ''
 class Trainer:
 
     def __init__(self, config_file, enable_logging=True):
